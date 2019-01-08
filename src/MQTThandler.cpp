@@ -17,7 +17,7 @@ void MQTThandler::callback(char* topic, uint8_t* payload, unsigned int length)
 	Serial.print("] ");
 	*/
 	char* somearray = new char[length + 1];
-	for (int i = 0; i < length; i++) {
+	for (unsigned int i = 0; i < length; i++) {
 		somearray[i] = ((char)payload[i]);
 	}
 	somearray[length] = '\0'; // null termination
@@ -26,6 +26,15 @@ void MQTThandler::callback(char* topic, uint8_t* payload, unsigned int length)
 
 	// remove the serial debug
 	// Serial.println("C message is " + Inc_message);
+}
+
+void MQTThandler::CBbinMsg(char* topic, uint8_t* payload, unsigned int length)
+{
+	
+	for (unsigned int i = 0; i < length; i++) {
+		B_message[i] = payload[i];
+	}
+	mailFlag = true;
 }
 
 // private function called to maintain the server connection
@@ -55,6 +64,25 @@ MQTThandler::MQTThandler(Client& _ClWifi, IPAddress _brokerIP){
 	MQTTClient.setClient(_ClWifi);
 	MQTTClient.setServer(_brokerIP, 1883);
 	MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->callback(topic, payload, length); });
+	mode = 0;
+	mailFlag = false;
+}
+
+//Constructor for binary payload; need ESP wifi client pointer and broker address
+MQTThandler::MQTThandler(Client & _ClWifi, IPAddress _brokerIP, uint8_t _mode, uint _bufferSz)
+{
+	ClWifi = &_ClWifi;
+	brokerIP = _brokerIP;
+	MQTTClient.setClient(_ClWifi);
+	MQTTClient.setServer(_brokerIP, 1883);
+	mode = _mode;
+	bufferSz = _bufferSz;
+	if (_mode = 0)
+		MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->callback(topic, payload, length); });
+	else {
+		MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->CBbinMsg(topic, payload, length); });
+		B_message = new byte[bufferSz];
+	}
 	mailFlag = false;
 }
 // update will return true if a message has been recieved

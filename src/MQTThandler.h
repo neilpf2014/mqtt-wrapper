@@ -22,6 +22,9 @@ class MQTThandler{
 	String Inc_message; //contains the latest message
 	String Out_topic;
 	String InC_topic;
+	byte* B_message; // will contain byte array for binary data
+	uint bufferSz;
+	uint8_t mode; // 0 for string, 1 for binary
 	String ClientName;
 	uint8_t mailFlag;
 	IPAddress brokerIP;
@@ -30,13 +33,15 @@ class MQTThandler{
 	unsigned long pastTime;
 	const long waitTime = 5000;
 	void callback(char* topic, uint8_t* payload, unsigned int length);
+	void CBbinMsg(char* topic, uint8_t* payload, unsigned int length);
 	//std::function<void(char*, uint8_t*, unsigned int)> callback;
 	void reconnect();
 
  public:
 	
 	// constuctor pass wifi and broker IP
-	MQTThandler(Client& _ClWifi, IPAddress BrkrtIP);
+	MQTThandler(Client& _ClWifi, IPAddress _brokerIP);
+	MQTThandler(Client& _ClWifi, IPAddress _brokerIP, uint8_t _mode, uint _bufferSz);
 	// need to call in main loop
 	int update();
 	void setClientName(String _clientName);
