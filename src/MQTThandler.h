@@ -22,8 +22,9 @@ class MQTThandler{
 	String Inc_message; //contains the latest message
 	String Out_topic;
 	String InC_topic;
+	String ConStatus; // connection status debug message
 	byte* B_message; // will contain byte array for binary data
-	uint bufferSz;
+	unsigned int bufferSz;
 	uint8_t mode; // 0 for string, 1 for binary
 	String ClientName;
 	uint8_t mailFlag;
@@ -40,6 +41,7 @@ class MQTThandler{
  public:
 	
 	// constuctor pass wifi and broker IP
+	MQTThandler(Client& _ClWifi, const char* _serverName);
 	MQTThandler(Client& _ClWifi, IPAddress _brokerIP);
 	MQTThandler(Client& _ClWifi, IPAddress _brokerIP, uint8_t _mode, uint _bufferSz);
 	// need to call in main loop
@@ -49,6 +51,7 @@ class MQTThandler{
 	void subscribeOutgoing(String topic);
 	int publish(String message);
 	String GetMsg();
+	String GetConStatus();
 };
 
 

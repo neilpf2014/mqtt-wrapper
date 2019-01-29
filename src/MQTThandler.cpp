@@ -1,21 +1,18 @@
 // Neil Flynn
-// 7-22-2018
-// V1
+// 1/28/2019
+// V-0.9.5
 
 #include "MQTThandler.h"
 
 // MQTThandler
 // wrapper class for the pub sub client class, use to hide callback from main.
+// return text as strings
+// alow for binary data to be passed
 // Will add some of my own code in here to extend pub sub client
 
 void MQTThandler::callback(char* topic, uint8_t* payload, unsigned int length)
 {
-	// remove the serial debug
-	/*
-	Serial.print("C Message arrived [");
-	Serial.print(topic);
-	Serial.print("] ");
-	*/
+	
 	char* somearray = new char[length + 1];
 	for (unsigned int i = 0; i < length; i++) {
 		somearray[i] = ((char)payload[i]);
@@ -23,11 +20,9 @@ void MQTThandler::callback(char* topic, uint8_t* payload, unsigned int length)
 	somearray[length] = '\0'; // null termination
 	Inc_message = somearray;
 	mailFlag = true;
-
-	// remove the serial debug
-	// Serial.println("C message is " + Inc_message);
 }
 
+// Treat message as binary
 void MQTThandler::CBbinMsg(char* topic, uint8_t* payload, unsigned int length)
 {
 	
@@ -38,26 +33,36 @@ void MQTThandler::CBbinMsg(char* topic, uint8_t* payload, unsigned int length)
 }
 
 // private function called to maintain the server connection
+// the mess that is being hidden from main
 void MQTThandler::reconnect(){
-	CurTime = millis();
+	CurTime = millis();	
 	while ((!MQTTClient.connected())&&(pastTime < (CurTime - waitTime))){
-		Serial.print("C Attempting MQTT connection...");
+		ConStatus = "Attempting MQTT connection...\n";  // debug
 		// Attempt to connect
 		if (MQTTClient.connect(ClientName.c_str())) {
-			Serial.println("connected");
+			ConStatus = ConStatus + "connected";
 			MQTTClient.subscribe(InC_topic.c_str());
 		}
 		else {
-			Serial.print("C failed, rc=");
-			Serial.print(MQTTClient.state());
-			Serial.println("C try again in 5 seconds");
+			ConStatus = ConStatus + "failed, rc="; //debug
+			ConStatus = ConStatus + String(MQTTClient.state());
+			ConStatus = ConStatus + "\ntry again in 5 seconds"; //debug
 			// Wait 5 seconds before retrying
 			pastTime = CurTime;
 		}
 	}
 }
 
-//Constructor; need ESP wifi client pointer and broker address
+//Constructor; need ESP wifi client pointer and broker domain
+MQTThandler::MQTThandler(Client& _ClWifi, const char* _serverName){
+	ClWifi = &_ClWifi;
+	MQTTClient.setClient(_ClWifi);
+	MQTTClient.setServer(_serverName, 1883);
+	MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->callback(topic, payload, length); });
+	mode = 0;
+	mailFlag = false;
+}
+//Constructor; need ESP wifi client pointer and broker IP address
 MQTThandler::MQTThandler(Client& _ClWifi, IPAddress _brokerIP){
 	ClWifi = &_ClWifi;
 	brokerIP = _brokerIP;
@@ -68,8 +73,9 @@ MQTThandler::MQTThandler(Client& _ClWifi, IPAddress _brokerIP){
 	mailFlag = false;
 }
 
-//Constructor for binary payload; need ESP wifi client pointer and broker address
-MQTThandler::MQTThandler(Client & _ClWifi, IPAddress _brokerIP, uint8_t _mode, uint _bufferSz)
+//Constructor for binary or text payload, mode 0 is string, 1 binary 
+// need ESP wifi client pointer and broker IP address
+MQTThandler::MQTThandler(Client & _ClWifi, IPAddress _brokerIP, uint8_t _mode, unsigned int _bufferSz)
 {
 	ClWifi = &_ClWifi;
 	brokerIP = _brokerIP;
@@ -77,7 +83,7 @@ MQTThandler::MQTThandler(Client & _ClWifi, IPAddress _brokerIP, uint8_t _mode, u
 	MQTTClient.setServer(_brokerIP, 1883);
 	mode = _mode;
 	bufferSz = _bufferSz;
-	if (_mode = 0)
+	if (_mode == (0))
 		MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->callback(topic, payload, length); });
 	else {
 		MQTTClient.setCallback([this](char* topic, byte* payload, unsigned int length) { this->CBbinMsg(topic, payload, length); });
@@ -85,7 +91,9 @@ MQTThandler::MQTThandler(Client & _ClWifi, IPAddress _brokerIP, uint8_t _mode, u
 	}
 	mailFlag = false;
 }
+
 // update will return true if a message has been recieved
+// this needs to be called evertime in main.cpp loop
 int MQTThandler::update(){
 	if(!MQTTClient.connected())
 		reconnect();
@@ -127,4 +135,9 @@ String MQTThandler::GetMsg(){
 	else
 		RetVal = "";
 	return RetVal;
+}
+
+// Get connection status message, for debug mostly
+String MQTThandler::GetConStatus(){
+	return ConStatus;
 }
